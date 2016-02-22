@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Definitions
+MONGO_HOST="127.0.0.1"
+MONGO_PORT="27017"
+MONGODUMP_PATH="/usr/bin/mongodump"
+DUMP_PATH="/GPFS/xf16id/mongodump"
+
+# Timestamp for filename
+TIMESTAMP=`date +%F--%H-%M-%S`
+
+# Save the current working dir
+CURR_DIR=$PWD
+
+# Switch to the dump dir
+cd $DUMP_PATH
+
+latest_backup=`ls -d */ 2>/dev/null | tail -1`
+latest_backup=${latest_backup%?}
+
+# Ensure to not overwrite one existing dump by incrementing the number at the end
+backup_folder=$TIMESTAMP
+if [[ -d $backup_folder ]] ; then
+    i=0
+    while [[ -d $backup_folder-$i ]] ; do
+        let i++
+    done
+    backup_folder=$backup_folder-$i
+fi
+
+echo "Running Mongo Dump Command"
+# Dump Command
+$MONGODUMP_PATH --host $MONGO_HOST:$MONGO_PORT --out $backup_folder
+
+
+# If we have a previous backup we need to check if the new one differs from it
+if [ ! -z "$latest_backup" ] ; then
+    echo "Comparing with previous backup at: $latest_backup"
+    # Check if the current backup is equal to the previous one
+    result=`diff -r $latest_backup $backup_folder`
+
+    # If the result is equal we just need to create
+    # a link for the previous backup folder
+    if [ -z "$result" ] ; then
+        echo "The new backup is equals to the previous one"        
+        echo "Removing the new backup"
+        rm -rf $backup_folder
+        echo "Creating a link for the previous backup: $latest_backup"
+        ln -s -T $latest_backup $backup_folder 
+    else
+        echo "The new backup is different from the previous one"
+
+        # Check if latest_backup is a link
+        link="`readlink $latest_backup`"
+        # if it is a link...
+        if [ ! -z "$link" ] ; then
+            # Create the file in which we will store the link relations
+            touch map.txt
+
+            # Store the first link relation
+            echo "$latest_backup#$link" | cat - map.txt > map_temp && mv map_temp map.txt
+
+            # Keep storing the links relation until the real directory
+            while [ ! -z "$link" ] ; do
+                aux="`readlink $link`"
+                echo "$link#$aux" | cat - map.txt > map_temp && mv map_temp map.txt
+                link=$aux
+            done
+
+            # Read the map file line by line
+            while IFS='' read -r line || [[ -n "$line" ]]; do
+                arr=(${line//#/ })
+                # If it is the real directory we need to compress it
+                if [ -z "${arr[1]}" ] ; then
+                    tar -czvf ${arr[0]}.tar.gz ${arr[0]}
+                    rm -rf ${arr[0]}
+                else
+                    # Not the real directory, just create the 
+                    # proper links for the tar.gz files
+                    ln -s ${arr[1]}.tar.gz ${arr[0]}.tar.gz
+                    rm ${arr[0]} 2> /dev/null
+                    rm ${arr[1]} 2> /dev/null
+                fi
+            done < "map.txt"
+
+            # Remove the map file
+            rm map.txt
+        else
+            echo "Compressing the old backup"
+            tar -czvf $latest_backup.tar.gz $latest_backup
+            echo "Removing the old backup folder"
+            rm -rf $latest_backup
+        fi        
+    fi
+fi
+
+# CD back to the previous working dir
+cd $CURR_DIR
+
