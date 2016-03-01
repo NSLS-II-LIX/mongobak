@@ -22,8 +22,12 @@ chmod +x mongo_backup
  - Optional: Set up a cron job to run `mongo_backup` automatically.
 
 ### Todo List
- - [ ]  Test against large database
- - [ ]  Change the comparisson between backups. Maybe md5, sha1 or other.
+ - [X]  Test against large database
+   - HXN Backup (~40G) takes around 12-15 minutes being 11 minutes for the mongodump 
+ - [X] Change the comparisson between backups. Maybe md5, sha1 or other.
+   - The diff command was taking 1:39 minutes for a ~40G backup.
+   - Changed to compare file by file with cmp command and stop on the first difference.
+   - New strategy with cmp is faster when files are different but will take ~2 minutes two compare to similar ~40G backups.
  - [ ]  Error Handling
     - [ ] Check if the host is reachable
     - [ ] Check if mongodump exists

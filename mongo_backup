@@ -6,10 +6,10 @@
 # ------------------------------------------------------------------
 
 # Definitions
-MONGO_HOST="127.0.0.1"
+MONGO_HOST=`hostname`
 MONGO_PORT="27017"
-MONGODUMP_PATH="/usr/bin/mongodump"
-DUMP_PATH="/GPFS/xf16id/mongodump"
+MONGODUMP_PATH=`which mongodump`
+DUMP_PATH='/backup/mongo_backup'
 
 # Timestamp for filename
 TIMESTAMP=`date +%F--%H-%M-%S`
@@ -42,16 +42,25 @@ $MONGODUMP_PATH --host $MONGO_HOST:$MONGO_PORT --out $backup_folder
 if [ ! -z "$latest_backup" ] ; then
     echo "Comparing with previous backup at: $latest_backup"
     # Check if the current backup is equal to the previous one
-    result=`diff -r $latest_backup $backup_folder`
+    equals=true
+    for i in `find -L $latest_backup -type f -name "*"`
+    do
+        result=$((cmp $i ${i//$latest_backup/$backup_folder}) 2>&1)
+    
+        if [[ ! -z "$result" ]]; then
+            equals=false
+            break
+        fi
+    done
 
     # If the result is equal we just need to create
     # a link for the previous backup folder
-    if [ -z "$result" ] ; then
+    if [ "$equals" = true ] ; then
         echo "The new backup is equals to the previous one"        
         echo "Removing the new backup"
         rm -rf $backup_folder
         echo "Creating a link for the previous backup: $latest_backup"
-        ln -s -T $latest_backup $backup_folder 
+        ln -s $latest_backup $backup_folder 
     else
         echo "The new backup is different from the previous one"
 
