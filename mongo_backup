@@ -20,7 +20,7 @@ CURR_DIR=$PWD
 # Switch to the dump dir
 cd $DUMP_PATH
 
-latest_backup=`ls -d */ 2>/dev/null | tail -1`
+latest_backup=`ls -drt */ 2>/dev/null | tail -1`
 latest_backup=${latest_backup%?}
 
 # Ensure to not overwrite one existing dump by incrementing the number at the end
