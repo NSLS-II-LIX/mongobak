@@ -42,7 +42,7 @@ $MONGODUMP_PATH --host $MONGO_HOST:$MONGO_PORT --out $backup_folder
 if [ ! -z "$latest_backup" ] ; then
     echo "Comparing with previous backup at: $latest_backup"
     # Check if the current backup is equal to the previous one
-    equals=true
+    equals=false
     for i in `find -L $latest_backup -type f -name "*"`
     do
         result=$((cmp $i ${i//$latest_backup/$backup_folder}) 2>&1)
