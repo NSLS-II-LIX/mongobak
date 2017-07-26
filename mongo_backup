@@ -17,25 +17,39 @@ TIMESTAMP=`date +%F--%H-%M-%S`
 # Save the current working dir
 CURR_DIR=$PWD
 
+# Ensure the dump dir exists or exit with error
+if [ -z $DUMP_PATH ]; then
+    echo "ERROR!!!  mongo DUMP_PATH can not be an empty string!  exiting mongo_backup cron!"
+    exit -1
+fi
+if [ ! -d $DUMP_PATH ]; then
+    echo "WARNING!!!  mongo dump dir ($DUMP_PATH) doesn't exist!  attempting to create..."
+    mkdir -p $DUMP_PATH || echo "ERROR!!!  mongo dump dir ($DUMP_PATH) doesn't exist and couldn't be created!  exiting mongo_backup cron!" && exit -1
+fi
+
 # Switch to the dump dir
-cd $DUMP_PATH
+cd $DUMP_PATH || echo "ERROR!!!  failed to cd to mongo dump dir ($DUMP_PATH)!!!  exiting mongo_backup cron!" && exit -1
 
 latest_backup=`ls -drt */ 2>/dev/null | tail -1`
 latest_backup=${latest_backup%?}
 
 # Ensure to not overwrite one existing dump by incrementing the number at the end
 backup_folder=$TIMESTAMP
-if [[ -d $backup_folder ]] ; then
+if [[ -d ${DUMP_PATH}/${backup_folder} ]] ; then
     i=0
-    while [[ -d $backup_folder-$i ]] ; do
+    while [[ -d ${DUMP_PATH}/${backup_folder}-$i ]] ; do
         let i++
     done
     backup_folder=$backup_folder-$i
 fi
 
+
+[ -z $backup_folder ] && echo "ERROR!!!  mongo backup_folder can not be an empty string!  exiting mongo_backup cron!" && exit -1
+
+
 echo "Running Mongo Dump Command"
 # Dump Command
-$MONGODUMP_PATH --host $MONGO_HOST:$MONGO_PORT --out $backup_folder
+$MONGODUMP_PATH --host $MONGO_HOST:$MONGO_PORT --out ${DUMP_PATH}/$backup_folder
 
 
 # If we have a previous backup we need to check if the new one differs from it
@@ -58,9 +72,9 @@ if [ ! -z "$latest_backup" ] ; then
     if [ "$equals" = true ] ; then
         echo "The new backup is equals to the previous one"        
         echo "Removing the new backup"
-        rm -rf $backup_folder
+        rm -rf ${DUMP_PATH}/${backup_folder}
         echo "Creating a link for the previous backup: $latest_backup"
-        ln -s $latest_backup $backup_folder 
+        ln -s ${latest_backup} ${DUMP_PATH}/${backup_folder} 
     else
         echo "The new backup is different from the previous one"
 
@@ -69,10 +83,10 @@ if [ ! -z "$latest_backup" ] ; then
         # if it is a link...
         if [ ! -z "$link" ] ; then
             # Create the file in which we will store the link relations
-            touch map.txt
+            touch ${DUMP_PATH}/map.txt
 
             # Store the first link relation
-            echo "$latest_backup#$link" | cat - map.txt > map_temp && mv map_temp map.txt
+            echo "$latest_backup#$link" | cat - map.txt > ${DUMP_PATH}/map_temp && mv ${DUMP_PATH}/map{_temp,.txt}
 
             # Keep storing the links relation until the real directory
             while [ ! -z "$link" ] ; do
@@ -86,24 +100,24 @@ if [ ! -z "$latest_backup" ] ; then
                 arr=(${line//#/ })
                 # If it is the real directory we need to compress it
                 if [ -z "${arr[1]}" ] ; then
-                    tar -czvf ${arr[0]}.tar.gz ${arr[0]}
-                    rm -rf ${arr[0]}
+                    tar -czvf ${DUMP_PATH}/${arr[0]}.tar.gz ${arr[0]}
+                    rm -rf ${DUMP_PATH}/${arr[0]}
                 else
                     # Not the real directory, just create the 
                     # proper links for the tar.gz files
-                    ln -s ${arr[1]}.tar.gz ${arr[0]}.tar.gz
-                    rm ${arr[0]} 2> /dev/null
-                    rm ${arr[1]} 2> /dev/null
+                    ln -s ${arr[1]}.tar.gz ${DUMP_PATH}/${arr[0]}.tar.gz
+                    rm ${DUMP_PATH}/${arr[0]} 2> /dev/null
+                    rm ${DUMP_PATH}/${arr[1]} 2> /dev/null
                 fi
             done < "map.txt"
 
             # Remove the map file
-            rm map.txt
+            rm ${DUMP_DIR}/map.txt
         else
             echo "Compressing the old backup"
-            tar -czvf $latest_backup.tar.gz $latest_backup
+            tar -czvf ${DUMP_PATH}/${latest_backup}.tar.gz ${latest_backup}
             echo "Removing the old backup folder"
-            rm -rf $latest_backup
+            rm -rf ${DUMP_PATH}/${latest_backup}
         fi        
     fi
 fi
