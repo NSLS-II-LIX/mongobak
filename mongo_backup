@@ -19,16 +19,16 @@ CURR_DIR=$PWD
 
 # Ensure the dump dir exists or exit with error
 if [ -z $DUMP_PATH ]; then
-    echo "ERROR!!!  mongo DUMP_PATH can not be an empty string!  exiting mongo_backup cron!"
+    echo "ERROR!!!  mongo DUMP_PATH can not be an empty string!  exiting mongo_backup!"
     exit -1
 fi
 if [ ! -d $DUMP_PATH ]; then
     echo "WARNING!!!  mongo dump dir ($DUMP_PATH) doesn't exist!  attempting to create..."
-    mkdir -p $DUMP_PATH || echo "ERROR!!!  mongo dump dir ($DUMP_PATH) doesn't exist and couldn't be created!  exiting mongo_backup cron!" && exit -1
+    mkdir -p $DUMP_PATH || echo "ERROR!!!  mongo dump dir ($DUMP_PATH) doesn't exist and couldn't be created!  exiting mongo_backup!" && exit -1
 fi
 
 # Switch to the dump dir
-cd $DUMP_PATH || echo "ERROR!!!  failed to cd to mongo dump dir ($DUMP_PATH)!!!  exiting mongo_backup cron!" && exit -1
+cd $DUMP_PATH || echo "ERROR!!!  failed to cd to mongo dump dir ($DUMP_PATH)!!!  exiting mongo_backup!" && exit -1
 
 latest_backup=`ls -drt */ 2>/dev/null | tail -1`
 latest_backup=${latest_backup%?}
@@ -44,7 +44,7 @@ if [[ -d ${DUMP_PATH}/${backup_folder} ]] ; then
 fi
 
 
-[ -z $backup_folder ] && echo "ERROR!!!  mongo backup_folder can not be an empty string!  exiting mongo_backup cron!" && exit -1
+[ -z $backup_folder ] && echo "ERROR!!!  mongo backup_folder can not be an empty string!  exiting mongo_backup!" && exit -1
 
 
 echo "Running Mongo Dump Command"
