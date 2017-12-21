@@ -24,11 +24,17 @@ if [ -z $DUMP_PATH ]; then
 fi
 if [ ! -d $DUMP_PATH ]; then
     echo "WARNING!!!  mongo dump dir ($DUMP_PATH) doesn't exist!  attempting to create..."
-    mkdir -p $DUMP_PATH || echo "ERROR!!!  mongo dump dir ($DUMP_PATH) doesn't exist and couldn't be created!  exiting mongo_backup!" && exit -1
+    if ! mkdir -p $DUMP_PATH; then
+	echo "ERROR!!!  mongo dump dir ($DUMP_PATH) doesn't exist and couldn't be created!  exiting mongo_backup!"
+	exit -1
+    fi
 fi
 
 # Switch to the dump dir
-cd $DUMP_PATH || echo "ERROR!!!  failed to cd to mongo dump dir ($DUMP_PATH)!!!  exiting mongo_backup!" && exit -1
+if ! cd $DUMP_PATH; then
+    echo "ERROR!!!  failed to cd to mongo dump dir ($DUMP_PATH)!!!  exiting mongo_backup!"
+     exit -1
+fi
 
 latest_backup=`ls -drt */ 2>/dev/null | tail -1`
 latest_backup=${latest_backup%?}
@@ -44,7 +50,10 @@ if [[ -d ${DUMP_PATH}/${backup_folder} ]] ; then
 fi
 
 
-[ -z $backup_folder ] && echo "ERROR!!!  mongo backup_folder can not be an empty string!  exiting mongo_backup!" && exit -1
+if [ -z $backup_folder ]; then
+    echo "ERROR!!!  mongo backup_folder can not be an empty string!  exiting mongo_backup!"
+    exit -1
+fi
 
 
 echo "Running Mongo Dump Command"
